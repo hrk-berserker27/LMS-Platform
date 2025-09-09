@@ -2,20 +2,20 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "3001:3000"
     env_file:
       - .env
     environment:
-      - MONGODB_URI=mongodb://admin:$${MONGO_PASSWORD:?MONGO_PASSWORD is required}@mongo:27017/majorproject?authSource=admin
-      - REDIS_URL=redis://:$${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
+      - MONGODB_URI=mongodb://admin:970dH4JK@mongo:27017/majorproject?authSource=admin
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - mongo
+      - redis
+    command: sh -c "sleep 10 && npm start"
     volumes:
       - ./src:/app/src:ro
       - ./package.json:/app/package.json:ro
+      - ./.env:/app/.env:ro
       - /app/node_modules
     networks:
       - app-network
@@ -25,31 +25,19 @@ services:
     environment:
       MONGO_INITDB_DATABASE: majorproject
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: $${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+      MONGO_INITDB_ROOT_PASSWORD: 970dH4JK
     volumes:
       - mongo-data:/data/db
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
   redis:
     image: redis:7-alpine
-    # Removed port exposure for security - only internal access
     command: redis-server
     volumes:
       - redis-data:/data
     networks:
       - app-network
-    healthcheck:
-      test: redis-cli ping
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   worker:
     build: .
@@ -57,13 +45,13 @@ services:
     env_file:
       - .env
     environment:
-      - MONGODB_URI=mongodb://admin:$${MONGO_PASSWORD:?MONGO_PASSWORD is required}@mongo:27017/majorproject?authSource=admin
-      - REDIS_URL=redis://:$${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
+      - MONGODB_URI=mongodb://admin:970dH4JK@mongo:27017/majorproject?authSource=admin
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - mongo
+      - redis
+    volumes:
+      - ./.env:/app/.env:ro
     networks:
       - app-network
 
