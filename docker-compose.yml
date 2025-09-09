@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - MONGODB_URI=mongodb://admin:$${MONGO_PASSWORD:?MONGO_PASSWORD is required}@mongo:27017/majorproject?authSource=admin
+      - REDIS_URL=redis://:$${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - /app/node_modules
+    networks:
+      - app-network
+
+  mongo:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_DATABASE: majorproject
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: $${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh 127.0.0.1:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    # Removed port exposure for security - only internal access
+    command: redis-server
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: redis-cli ping
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build: .
+    command: npm run worker
+    env_file:
+      - .env
+    environment:
+      - MONGODB_URI=mongodb://admin:$${MONGO_PASSWORD:?MONGO_PASSWORD is required}@mongo:27017/majorproject?authSource=admin
+      - REDIS_URL=redis://:$${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+volumes:
+  mongo-data:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge
